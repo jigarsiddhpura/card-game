@@ -49,6 +49,7 @@ class Game {
     List<Card> playedCards = new ArrayList<>();
     String trump;
     List<String> playerNames;
+    String roundSuit;
 
     Game(List<String> playerNames, String trump) {
         for (String name : playerNames) {
@@ -62,50 +63,41 @@ class Game {
         Card card = new Card(cardStr.substring(0, 1), cardStr.substring(1));
         players.get(playerName).addCard(cardStr);
         playedCards.add(card);
+        if (playedCards.size() == 1) roundSuit = card.suit;
     }
 
     public Card getOptimalCard(Player self) {
         int teammateIdx = (playerNames.indexOf(self.name) + 2) % 4;
         String teammate = playerNames.get(teammateIdx);
 
-        Card highestCard = Collections.max(playedCards, (c1, c2) -> {
-            if (c1.suit.equals(c2.suit)) return c1.compareTo(c2);
-            if (c1.suit.equals(trump)) return 1;
-            if (c2.suit.equals(trump)) return -1;
-            return 0;
-        });
+        Card highestCard = getHighestCard(playedCards);
 
-        // Scenario 1: If the teammate has the highest card, play the smallest card.
+        // Scenario 1: If the teammate has the highest card (win is fixed), play the smallest card
         if (players.get(teammate).cards.contains(highestCard)) {
-            return getSmallestCard(self.cards);
+            return getSmallestCardOverall(self.cards);
         }
 
-        // Scenario 2: Opponent's highest card is non-trump
-        if (!highestCard.suit.equals(trump)) {
-            Card smallestBiggerCard = getSmallestCardBiggerThan(self.cards, highestCard, highestCard.suit);
-            if (smallestBiggerCard != null) {
-                return smallestBiggerCard;
-            }
-        }
+        // Scenario 2: if i can win (smallest to win)
+        Card winningCard = getSmallestCardToWin(self.cards);
+        if (winningCard != null) return winningCard;
 
-        // Scenario 3: Check if the enemy has a trump card that's higher than any of teammate's trump card, then play the smallest trump card greater than the enemy
-        Card highestTeammateTrumpCard = getHighestCard(players.get(teammate).cards, trump);
-        Card highestEnemyTrumpCard = playerNames.stream()
-            .filter(p -> !p.equals(teammate) && !p.equals(self.name))
-            .map(p -> getHighestCard(players.get(p).cards, trump))
-            .filter(Objects::nonNull)
-            .max(Card::compareTo)
-            .orElse(null);
+        // Scenario 3: fallback (lose is fixed)
+        return getSmallestCardOverall(self.cards);
+    }
 
-        if (highestTeammateTrumpCard == null || (highestEnemyTrumpCard != null && highestEnemyTrumpCard.compareTo(highestTeammateTrumpCard) > 0)) {
-            Card smallestTrumpHigherThanEnemy = getSmallestCardBiggerThan(self.cards, highestEnemyTrumpCard, trump);
-            if (smallestTrumpHigherThanEnemy != null) {
-                return smallestTrumpHigherThanEnemy;
-            }
-        }
-
-        // fallback
-        return getSmallestCard(self.cards);
+    public Card getHighestCard(List<Card> cards) {
+        return cards.stream()
+        .max((c1,c2) -> {
+            if (c1.suit.equals(trump) && !c2.suit.equals(trump)) return 1;
+            if (!c1.suit.equals(trump) && c2.suit.equals(trump)) return -1;
+            if (c1.suit.equals(trump) && c2.suit.equals(trump)) return c1.compareTo(c2);
+            if (c1.suit.equals(roundSuit) && !c2.suit.equals(roundSuit)) return 1;
+            if (!c1.suit.equals(roundSuit) && c2.suit.equals(roundSuit)) return -1;
+            if (c1.suit.equals(roundSuit) && c2.suit.equals(roundSuit)) return c1.compareTo(c2);
+            if (!c1.suit.equals(roundSuit) && !c2.suit.equals(roundSuit)) return c1.compareTo(c2);
+            return 0;
+        })
+        .orElse(null);
     }
 
     public Card getHighestCard(List<Card> cards, String suit) {
@@ -122,10 +114,39 @@ class Game {
             .orElse(null);
     }
 
-    public Card getSmallestCard(List<Card> cards) {
-        return cards.stream()
-            .min(Card::compareTo)
-            .orElse(null);
+    public Card getSmallestCardToWin(List<Card> cards) {
+        Card highestPlayed = getHighestCard(cards);
+
+        if (!highestPlayed.suit.equals(trump)) {
+            Card smallestWinningCard = getSmallestCardBiggerThan(cards, highestPlayed, roundSuit);
+            if (smallestWinningCard != null) return smallestWinningCard;
+
+            return getSmallestCardOfSuit(cards, trump);
+        } else {    
+            return getSmallestCardBiggerThan(cards, highestPlayed, trump);
+        }
+    }
+
+    public Card getSmallestCardOverall(List<Card> cards) {
+
+        List<Card> roundSuitCards = cards.stream()
+        .filter(c -> c.suit.equals(roundSuit))
+        .sorted()
+        .toList();
+
+        if (!roundSuitCards.isEmpty()) return roundSuitCards.get(0);
+
+        List<Card> nonTrumpCards = cards.stream()
+        .filter(c -> !c.suit.equals(trump))
+        .sorted((c1,c2) -> {
+            if (c1.compareTo(c2) != 0) return c1.compareTo(c2);
+            return Card.suitRanks.get(c1.suit).compareTo(Card.suitRanks.get(c2.suit));
+        })
+        .toList();
+
+        if (!nonTrumpCards.isEmpty()) return nonTrumpCards.get(0);
+
+        return cards.stream().min(Card::compareTo).orElse(null);
     }
 
     public Card getSmallestCardOfSuit(List<Card> cards, String suit) {
