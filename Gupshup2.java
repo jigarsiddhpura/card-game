@@ -182,6 +182,7 @@ public class Gupshup2 {
                 if (inputMap.containsKey(playerName)) {
                     game.addCardToPlayer(playerName, inputMap.get(playerName));
                 }
+                if (playerName.equals(inputMap.get("self"))) break;
             }
 
             Player self = game.players.get(inputMap.get("self"));

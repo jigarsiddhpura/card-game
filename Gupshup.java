@@ -86,17 +86,6 @@ class Game {
         }
         return false;
     }
-
-    public Card getOptimumCard() {
-        
-        boolean isWinFixed = false;
-        boolean isLoseFixed = false;
-        String player2 = players[1];
-
-        if (isWinFixed || isLoseFixed) {
-
-        }
-    }
 }
 
 public class Gupshup {
@@ -146,9 +135,9 @@ public class Gupshup {
                 }
             }
 
-            Game game = new Game(players, cardsToChooseFrom, trumpSuit, plays, self);
-            Card ans = game.getOptimumCard();
-            out.println(ans);
+            // Game game = new Game(players, cardsToChooseFrom, trumpSuit, plays, self);
+            // Card ans = game.getOptimumCard();
+            // out.println(ans);
 
         } catch (Exception e) {
             e.printStackTrace();
